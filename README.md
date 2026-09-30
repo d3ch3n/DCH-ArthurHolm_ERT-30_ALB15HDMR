@@ -38,6 +38,13 @@ The generated file is:
 DCH-ArthurHolm_ERT-30_ALB15HDMR.qplug
 ```
 
+## Reference Documentation
+
+Official Arthur Holm / Albiral manuals and installation drawings used for the
+implementation are stored in [`references/`](references/README.md).
+
 ## Notes
 
-The default TCP port is set to `10001`, which is common for raw TCP serial bridges. If the ERT-30 in the field is configured differently, change the `Default Port` property or the runtime `DevicePort` control.
+The default TCP port is `2002`, as specified in the official ERT user guide. If
+the ERT-30 in the field is configured differently, change the `Default Port`
+property or the runtime `DevicePort` control.

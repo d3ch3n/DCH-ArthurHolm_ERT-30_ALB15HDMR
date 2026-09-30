@@ -1,5 +1,5 @@
 if props["Default Port"].Value < 1 then
-  props["Default Port"].Value = 10001
+  props["Default Port"].Value = 2002
 elseif props["Default Port"].Value > 65535 then
   props["Default Port"].Value = 65535
 end

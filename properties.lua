@@ -10,7 +10,7 @@ table.insert(props, {
   Type = "integer",
   Min = 1,
   Max = 65535,
-  Value = 10001
+  Value = 2002
 })
 
 table.insert(props, {
