@@ -40,6 +40,30 @@ The generated file is:
 DCH-ArthurHolm_ERT-30_ALB15HDMR.qplug
 ```
 
+## ERT-30 Emulator
+
+For bench testing without hardware, run the included TCP emulator:
+
+```bash
+python3 tools/ert30_emulator.py
+```
+
+On macOS, `tools/run_ert30_emulator.command` can also be opened directly. The
+emulator listens on TCP port `2002`, supports monitor addresses 1-30, preserves
+state, handles broadcast address `F9` without replying, and logs every AHnet
+frame.
+
+Configure the plugin with the IP address of the computer running the emulator.
+When Q-SYS Designer is running on the same computer, use `127.0.0.1`. Use the
+interactive `fail 1 on` command to simulate a failure and `fail 1 off` to clear
+it. Type `status 1` to inspect the simulated monitor state.
+
+Run the emulator tests with:
+
+```bash
+python3 -m unittest discover -s tests -v
+```
+
 ## Reference Documentation
 
 Official Arthur Holm / Albiral manuals and installation drawings used for the
