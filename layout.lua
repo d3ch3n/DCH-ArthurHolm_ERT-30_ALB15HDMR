@@ -22,10 +22,11 @@ local function addGroup(text, x, y, w, h)
   })
 end
 
-local function button(name, pretty, x, y, w, h, color)
+local function button(name, pretty, legend, x, y, w, h, color)
   layout[name] = {
     PrettyName = pretty,
     Style = "Button",
+    Legend = legend,
     Position = { x, y },
     Size = { w, h },
     Color = color or { 34, 88, 122 }
@@ -52,28 +53,34 @@ local function led(name, pretty, x, y)
 end
 
 if CurrentPage == "Control" then
-  addGroup("Monitor", 5, 5, 330, 225)
-  addLabel("Address", 18, 34, 64, 16, "Right")
-  textBox("Address", "AHnet Address", 88, 30, 46, 24)
-  button("Broadcast", "Broadcast", 146, 30, 86, 24, { 96, 96, 96 })
+  addGroup("Target", 5, 5, 330, 58)
+  addLabel("Address", 18, 31, 64, 16, "Right")
+  textBox("Address", "AHnet Address", 88, 27, 46, 24)
+  button("Broadcast", "Broadcast", "Broadcast", 146, 27, 96, 24, { 96, 96, 96 })
 
-  button("Up", "Movement~Up", 22, 68, 88, 32, { 46, 125, 50 })
-  button("Down", "Movement~Down", 118, 68, 88, 32, { 198, 76, 35 })
-  button("Inquiry", "Diagnostics~Inquiry", 214, 68, 88, 32, { 80, 80, 80 })
+  addGroup("Movement", 5, 70, 160, 68)
+  button("Up", "Movement~Up", "Up", 15, 94, 65, 30, { 46, 125, 50 })
+  button("Down", "Movement~Down", "Down", 90, 94, 65, 30, { 198, 76, 35 })
 
-  button("ScreenOn", "Display~On", 22, 110, 88, 32, { 46, 125, 50 })
-  button("ScreenOff", "Display~Off", 118, 110, 88, 32, { 198, 76, 35 })
-  button("Firmware", "Diagnostics~Firmware", 214, 110, 88, 32, { 80, 80, 80 })
+  addGroup("Display", 175, 70, 160, 68)
+  button("ScreenOn", "Display~On", "On", 185, 94, 65, 30, { 46, 125, 50 })
+  button("ScreenOff", "Display~Off", "Off", 260, 94, 65, 30, { 198, 76, 35 })
 
-  button("InputVGA", "Input~VGA", 22, 152, 88, 32, { 38, 103, 166 })
-  button("InputDVI", "Input~DVI", 118, 152, 88, 32, { 38, 103, 166 })
-  button("AutoConfig", "Input~Auto Config", 214, 152, 88, 32, { 38, 103, 166 })
+  addGroup("Input", 5, 145, 330, 68)
+  button("InputVGA", "Input~VGA", "VGA", 15, 169, 95, 30, { 38, 103, 166 })
+  button("InputDVI", "Input~DVI", "DVI", 120, 169, 95, 30, { 38, 103, 166 })
+  button("AutoConfig", "Input~Auto Config", "Auto Config", 225, 169, 100, 30, { 38, 103, 166 })
 
-  button("Lock", "Buttons~Lock", 22, 194, 88, 24, { 120, 83, 42 })
-  button("Unlock", "Buttons~Unlock", 118, 194, 88, 24, { 120, 83, 42 })
-  button("FailureReset", "Diagnostics~Failure Reset", 214, 194, 88, 24, { 120, 83, 42 })
+  addGroup("Panel Buttons", 5, 220, 160, 68)
+  button("Lock", "Buttons~Lock", "Lock", 15, 244, 65, 30, { 120, 83, 42 })
+  button("Unlock", "Buttons~Unlock", "Unlock", 90, 244, 65, 30, { 120, 83, 42 })
 
-  addGroup("Feedback", 345, 5, 300, 225)
+  addGroup("Diagnostics", 175, 220, 160, 105)
+  button("Inquiry", "Diagnostics~Inquiry", "Inquiry", 185, 244, 65, 30, { 80, 80, 80 })
+  button("Firmware", "Diagnostics~Firmware", "Firmware", 260, 244, 65, 30, { 80, 80, 80 })
+  button("FailureReset", "Diagnostics~Failure Reset", "Reset Failure", 185, 282, 140, 30, { 120, 83, 42 })
+
+  addGroup("Feedback", 345, 5, 300, 320)
   local fb = {
     { "ConnectedFB", "Connected", 362, 34 },
     { "UpFB", "Up", 362, 66 },
