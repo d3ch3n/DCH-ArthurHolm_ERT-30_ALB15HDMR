@@ -58,29 +58,31 @@ if CurrentPage == "Control" then
   textBox("Address", "AHnet Address", 88, 27, 46, 24)
   button("Broadcast", "Broadcast", "Broadcast", 146, 27, 96, 24, { 96, 96, 96 })
 
-  addGroup("Movement", 5, 70, 160, 68)
+  addGroup("Movement", 5, 70, 160, 106)
   button("Up", "Movement~Up", "Up", 15, 94, 65, 30, { 46, 125, 50 })
   button("Down", "Movement~Down", "Down", 90, 94, 65, 30, { 198, 76, 35 })
+  button("MovementToggle", "Movement~Toggle", "Up / Down", 15, 132, 140, 30, { 46, 125, 50 })
 
-  addGroup("Display", 175, 70, 160, 68)
+  addGroup("Display", 175, 70, 160, 106)
   button("ScreenOn", "Display~On", "On", 185, 94, 65, 30, { 46, 125, 50 })
   button("ScreenOff", "Display~Off", "Off", 260, 94, 65, 30, { 198, 76, 35 })
+  button("PowerToggle", "Display~Power Toggle", "On / Off", 185, 132, 140, 30, { 46, 125, 50 })
 
-  addGroup("Input", 5, 145, 330, 68)
-  button("InputVGA", "Input~VGA", "VGA", 15, 169, 95, 30, { 38, 103, 166 })
-  button("InputDVI", "Input~DVI", "DVI", 120, 169, 95, 30, { 38, 103, 166 })
-  button("AutoConfig", "Input~Auto Config", "Auto Config", 225, 169, 100, 30, { 38, 103, 166 })
+  addGroup("Input", 5, 183, 330, 68)
+  button("InputVGA", "Input~VGA", "VGA", 15, 207, 95, 30, { 38, 103, 166 })
+  button("InputDVI", "Input~DVI", "DVI", 120, 207, 95, 30, { 38, 103, 166 })
+  button("AutoConfig", "Input~Auto Config", "Auto Config", 225, 207, 100, 30, { 38, 103, 166 })
 
-  addGroup("Panel Buttons", 5, 220, 160, 68)
-  button("Lock", "Buttons~Lock", "Lock", 15, 244, 65, 30, { 120, 83, 42 })
-  button("Unlock", "Buttons~Unlock", "Unlock", 90, 244, 65, 30, { 120, 83, 42 })
+  addGroup("Panel Buttons", 5, 258, 160, 68)
+  button("Lock", "Buttons~Lock", "Lock", 15, 282, 65, 30, { 120, 83, 42 })
+  button("Unlock", "Buttons~Unlock", "Unlock", 90, 282, 65, 30, { 120, 83, 42 })
 
-  addGroup("Diagnostics", 175, 220, 160, 105)
-  button("Inquiry", "Diagnostics~Inquiry", "Inquiry", 185, 244, 65, 30, { 80, 80, 80 })
-  button("Firmware", "Diagnostics~Firmware", "Firmware", 260, 244, 65, 30, { 80, 80, 80 })
-  button("FailureReset", "Diagnostics~Failure Reset", "Reset Failure", 185, 282, 140, 30, { 120, 83, 42 })
+  addGroup("Diagnostics", 175, 258, 160, 105)
+  button("Inquiry", "Diagnostics~Inquiry", "Inquiry", 185, 282, 65, 30, { 80, 80, 80 })
+  button("Firmware", "Diagnostics~Firmware", "Firmware", 260, 282, 65, 30, { 80, 80, 80 })
+  button("FailureReset", "Diagnostics~Failure Reset", "Reset Failure", 185, 320, 140, 30, { 120, 83, 42 })
 
-  addGroup("Feedback", 345, 5, 300, 320)
+  addGroup("Feedback", 345, 5, 300, 358)
   local fb = {
     { "ConnectedFB", "Connected", 362, 34 },
     { "UpFB", "Up", 362, 66 },

@@ -8,7 +8,9 @@ Q-SYS control plugin for Arthur Holm / Albiral ALB15HDMR monitors connected thro
 - AHnet address selection from 1 to 30.
 - Broadcast mode using AHnet address `F9`.
 - Movement: up and down.
+- Movement toggle: on raises the monitor, off lowers it.
 - Display: screen on and screen off.
+- Power toggle: on powers the screen, off powers it down.
 - Input: VGA and DVI.
 - Button lock and unlock.
 - VGA auto-config.

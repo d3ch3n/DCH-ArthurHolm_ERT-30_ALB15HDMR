@@ -40,6 +40,17 @@ table.insert(ctrls, {
   PinStyle = "Both"
 })
 
+for _, name in ipairs({ "MovementToggle", "PowerToggle" }) do
+  table.insert(ctrls, {
+    Name = name,
+    ControlType = "Button",
+    ButtonType = "Toggle",
+    Count = 1,
+    UserPin = true,
+    PinStyle = "Both"
+  })
+end
+
 local commandButtons = {
   "Up",
   "Down",

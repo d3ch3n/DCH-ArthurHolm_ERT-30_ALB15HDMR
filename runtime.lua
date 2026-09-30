@@ -3,6 +3,7 @@ local EmptyIPMessage = "Enter ERT-30 IP"
 local TCP = TcpSocket.New()
 local PollTimer = Timer.New()
 local rxBuffer = ""
+local syncingToggles = false
 
 local DebugTx = false
 local DebugRx = false
@@ -88,6 +89,13 @@ local function sendAHnet(command, value1, value2)
   writeFrame(string.char(0xFA, getAddress(), command, value1 or 0x00, value2 or 0x00))
 end
 
+local function syncToggleStates()
+  syncingToggles = true
+  Controls.MovementToggle.Boolean = Controls.UpFB.Boolean
+  Controls.PowerToggle.Boolean = Controls.ScreenOnFB.Boolean
+  syncingToggles = false
+end
+
 local function setFeedbackFromControlByte(cb1)
   Controls.ControlByte.String = byteToHex(cb1)
   Controls.UpFB.Boolean = hasBit(cb1, 0x01)
@@ -96,6 +104,7 @@ local function setFeedbackFromControlByte(cb1)
   Controls.LockedFB.Boolean = hasBit(cb1, 0x08)
   Controls.InputDVIFB.Boolean = hasBit(cb1, 0x10)
   Controls.FailureFB.Boolean = hasBit(cb1, 0x20)
+  syncToggleStates()
 end
 
 local function parseFrame(frame)
@@ -117,8 +126,10 @@ local function parseFrame(frame)
   elseif command == 0x01 then
     Controls.UpFB.Boolean = value1 == 0x01
     Controls.DownFB.Boolean = value1 == 0x00
+    syncToggleStates()
   elseif command == 0x02 then
     Controls.ScreenOnFB.Boolean = value1 == 0x01
+    syncToggleStates()
   elseif command == 0x03 then
     Controls.InputDVIFB.Boolean = value1 == 0x00
   elseif command == 0x04 then
@@ -232,6 +243,18 @@ Controls.Broadcast.EventHandler = function(ctrl)
     reportStatus("OK", "Broadcast address F9")
   else
     pollDevice()
+  end
+end
+
+Controls.MovementToggle.EventHandler = function(ctrl)
+  if not syncingToggles then
+    sendAHnet(0x01, ctrl.Boolean and 0x01 or 0x00, 0x00)
+  end
+end
+
+Controls.PowerToggle.EventHandler = function(ctrl)
+  if not syncingToggles then
+    sendAHnet(0x02, ctrl.Boolean and 0x01 or 0x00, 0x00)
   end
 end
 

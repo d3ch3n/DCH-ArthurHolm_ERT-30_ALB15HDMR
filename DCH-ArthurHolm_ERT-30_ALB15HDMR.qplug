@@ -2,8 +2,8 @@
 
 PluginInfo = {
   Name = "DCH~Arthur Holm~ERT-30 ALB15HDMR",
-  Version = "1.0.2",
-  BuildVersion = "1.0.0.2",
+  Version = "1.0.3",
+  BuildVersion = "1.0.0.3",
   Id = "8f4d8d6e-0a9a-4c6d-9d35-56df72fdbd86",
   Author = "DCH",
   Description = "Controls Arthur Holm / Albiral ALB15HDMR monitors through an ERT-30 AHnet IP interface."
@@ -146,6 +146,17 @@ table.insert(ctrls, {
   PinStyle = "Both"
 })
 
+for _, name in ipairs({ "MovementToggle", "PowerToggle" }) do
+  table.insert(ctrls, {
+    Name = name,
+    ControlType = "Button",
+    ButtonType = "Toggle",
+    Count = 1,
+    UserPin = true,
+    PinStyle = "Both"
+  })
+end
+
 local commandButtons = {
   "Up",
   "Down",
@@ -269,29 +280,31 @@ if CurrentPage == "Control" then
   textBox("Address", "AHnet Address", 88, 27, 46, 24)
   button("Broadcast", "Broadcast", "Broadcast", 146, 27, 96, 24, { 96, 96, 96 })
 
-  addGroup("Movement", 5, 70, 160, 68)
+  addGroup("Movement", 5, 70, 160, 106)
   button("Up", "Movement~Up", "Up", 15, 94, 65, 30, { 46, 125, 50 })
   button("Down", "Movement~Down", "Down", 90, 94, 65, 30, { 198, 76, 35 })
+  button("MovementToggle", "Movement~Toggle", "Up / Down", 15, 132, 140, 30, { 46, 125, 50 })
 
-  addGroup("Display", 175, 70, 160, 68)
+  addGroup("Display", 175, 70, 160, 106)
   button("ScreenOn", "Display~On", "On", 185, 94, 65, 30, { 46, 125, 50 })
   button("ScreenOff", "Display~Off", "Off", 260, 94, 65, 30, { 198, 76, 35 })
+  button("PowerToggle", "Display~Power Toggle", "On / Off", 185, 132, 140, 30, { 46, 125, 50 })
 
-  addGroup("Input", 5, 145, 330, 68)
-  button("InputVGA", "Input~VGA", "VGA", 15, 169, 95, 30, { 38, 103, 166 })
-  button("InputDVI", "Input~DVI", "DVI", 120, 169, 95, 30, { 38, 103, 166 })
-  button("AutoConfig", "Input~Auto Config", "Auto Config", 225, 169, 100, 30, { 38, 103, 166 })
+  addGroup("Input", 5, 183, 330, 68)
+  button("InputVGA", "Input~VGA", "VGA", 15, 207, 95, 30, { 38, 103, 166 })
+  button("InputDVI", "Input~DVI", "DVI", 120, 207, 95, 30, { 38, 103, 166 })
+  button("AutoConfig", "Input~Auto Config", "Auto Config", 225, 207, 100, 30, { 38, 103, 166 })
 
-  addGroup("Panel Buttons", 5, 220, 160, 68)
-  button("Lock", "Buttons~Lock", "Lock", 15, 244, 65, 30, { 120, 83, 42 })
-  button("Unlock", "Buttons~Unlock", "Unlock", 90, 244, 65, 30, { 120, 83, 42 })
+  addGroup("Panel Buttons", 5, 258, 160, 68)
+  button("Lock", "Buttons~Lock", "Lock", 15, 282, 65, 30, { 120, 83, 42 })
+  button("Unlock", "Buttons~Unlock", "Unlock", 90, 282, 65, 30, { 120, 83, 42 })
 
-  addGroup("Diagnostics", 175, 220, 160, 105)
-  button("Inquiry", "Diagnostics~Inquiry", "Inquiry", 185, 244, 65, 30, { 80, 80, 80 })
-  button("Firmware", "Diagnostics~Firmware", "Firmware", 260, 244, 65, 30, { 80, 80, 80 })
-  button("FailureReset", "Diagnostics~Failure Reset", "Reset Failure", 185, 282, 140, 30, { 120, 83, 42 })
+  addGroup("Diagnostics", 175, 258, 160, 105)
+  button("Inquiry", "Diagnostics~Inquiry", "Inquiry", 185, 282, 65, 30, { 80, 80, 80 })
+  button("Firmware", "Diagnostics~Firmware", "Firmware", 260, 282, 65, 30, { 80, 80, 80 })
+  button("FailureReset", "Diagnostics~Failure Reset", "Reset Failure", 185, 320, 140, 30, { 120, 83, 42 })
 
-  addGroup("Feedback", 345, 5, 300, 320)
+  addGroup("Feedback", 345, 5, 300, 358)
   local fb = {
     { "ConnectedFB", "Connected", 362, 34 },
     { "UpFB", "Up", 362, 66 },
@@ -342,6 +355,7 @@ local EmptyIPMessage = "Enter ERT-30 IP"
 local TCP = TcpSocket.New()
 local PollTimer = Timer.New()
 local rxBuffer = ""
+local syncingToggles = false
 
 local DebugTx = false
 local DebugRx = false
@@ -427,6 +441,13 @@ local function sendAHnet(command, value1, value2)
   writeFrame(string.char(0xFA, getAddress(), command, value1 or 0x00, value2 or 0x00))
 end
 
+local function syncToggleStates()
+  syncingToggles = true
+  Controls.MovementToggle.Boolean = Controls.UpFB.Boolean
+  Controls.PowerToggle.Boolean = Controls.ScreenOnFB.Boolean
+  syncingToggles = false
+end
+
 local function setFeedbackFromControlByte(cb1)
   Controls.ControlByte.String = byteToHex(cb1)
   Controls.UpFB.Boolean = hasBit(cb1, 0x01)
@@ -435,6 +456,7 @@ local function setFeedbackFromControlByte(cb1)
   Controls.LockedFB.Boolean = hasBit(cb1, 0x08)
   Controls.InputDVIFB.Boolean = hasBit(cb1, 0x10)
   Controls.FailureFB.Boolean = hasBit(cb1, 0x20)
+  syncToggleStates()
 end
 
 local function parseFrame(frame)
@@ -456,8 +478,10 @@ local function parseFrame(frame)
   elseif command == 0x01 then
     Controls.UpFB.Boolean = value1 == 0x01
     Controls.DownFB.Boolean = value1 == 0x00
+    syncToggleStates()
   elseif command == 0x02 then
     Controls.ScreenOnFB.Boolean = value1 == 0x01
+    syncToggleStates()
   elseif command == 0x03 then
     Controls.InputDVIFB.Boolean = value1 == 0x00
   elseif command == 0x04 then
@@ -571,6 +595,18 @@ Controls.Broadcast.EventHandler = function(ctrl)
     reportStatus("OK", "Broadcast address F9")
   else
     pollDevice()
+  end
+end
+
+Controls.MovementToggle.EventHandler = function(ctrl)
+  if not syncingToggles then
+    sendAHnet(0x01, ctrl.Boolean and 0x01 or 0x00, 0x00)
+  end
+end
+
+Controls.PowerToggle.EventHandler = function(ctrl)
+  if not syncingToggles then
+    sendAHnet(0x02, ctrl.Boolean and 0x01 or 0x00, 0x00)
   end
 end
 
