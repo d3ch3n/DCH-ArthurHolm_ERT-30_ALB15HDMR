@@ -8,6 +8,8 @@ Q-SYS control plugin for Arthur Holm / Albiral ALB15HDMR monitors connected thro
 - AHnet address selection from 1 to 30.
 - Configurable monitor count with one feedback page per monitor.
 - Broadcast mode using AHnet address `F9`.
+- Dedicated broadcast control page.
+- Complete individual controls on every monitor page.
 - Movement: up and down.
 - Movement toggle: on raises the monitor, off lowers it.
 - Display: screen on and screen off.

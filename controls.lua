@@ -120,6 +120,28 @@ local monitorIndicators = {
 }
 
 for address = 1, monitorCount do
+  for _, suffix in ipairs({ "MovementToggle", "PowerToggle" }) do
+    table.insert(ctrls, {
+      Name = "Monitor" .. address .. suffix,
+      ControlType = "Button",
+      ButtonType = "Toggle",
+      Count = 1,
+      UserPin = true,
+      PinStyle = "Both"
+    })
+  end
+
+  for _, suffix in ipairs(commandButtons) do
+    table.insert(ctrls, {
+      Name = "Monitor" .. address .. suffix,
+      ControlType = "Button",
+      ButtonType = "Momentary",
+      Count = 1,
+      UserPin = true,
+      PinStyle = "Both"
+    })
+  end
+
   for _, suffix in ipairs(monitorIndicators) do
     table.insert(ctrls, {
       Name = "Monitor" .. address .. suffix,

@@ -54,58 +54,38 @@ local function led(name, pretty, x, y)
   }
 end
 
-if CurrentPage == "Control" then
-  addGroup("Target", 5, 5, 330, 58)
-  addLabel("Address", 18, 31, 64, 16, "Right")
-  textBox("Address", "AHnet Address", 88, 27, 46, 24)
-  button("Broadcast", "Broadcast", "Broadcast", 146, 27, 96, 24, { 96, 96, 96 })
-
-  addGroup("Movement", 5, 70, 160, 106)
-  button("Up", "Movement~Up", "Up", 15, 94, 65, 30, { 46, 125, 50 })
-  button("Down", "Movement~Down", "Down", 90, 94, 65, 30, { 198, 76, 35 })
-  button("MovementToggle", "Movement~Toggle", "Up / Down", 15, 132, 140, 30, { 46, 125, 50 })
-
-  addGroup("Display", 175, 70, 160, 106)
-  button("ScreenOn", "Display~On", "On", 185, 94, 65, 30, { 46, 125, 50 })
-  button("ScreenOff", "Display~Off", "Off", 260, 94, 65, 30, { 198, 76, 35 })
-  button("PowerToggle", "Display~Power Toggle", "On / Off", 185, 132, 140, 30, { 46, 125, 50 })
-
-  addGroup("Input", 5, 183, 330, 68)
-  button("InputVGA", "Input~VGA", "VGA", 15, 207, 95, 30, { 38, 103, 166 })
-  button("InputDVI", "Input~DVI", "DVI", 120, 207, 95, 30, { 38, 103, 166 })
-  button("AutoConfig", "Input~Auto Config", "Auto Config", 225, 207, 100, 30, { 38, 103, 166 })
-
-  addGroup("Panel Buttons", 5, 258, 160, 68)
-  button("Lock", "Buttons~Lock", "Lock", 15, 282, 65, 30, { 120, 83, 42 })
-  button("Unlock", "Buttons~Unlock", "Unlock", 90, 282, 65, 30, { 120, 83, 42 })
-
-  addGroup("Diagnostics", 175, 258, 160, 105)
-  button("Inquiry", "Diagnostics~Inquiry", "Inquiry", 185, 282, 65, 30, { 80, 80, 80 })
-  button("Firmware", "Diagnostics~Firmware", "Firmware", 260, 282, 65, 30, { 80, 80, 80 })
-  button("FailureReset", "Diagnostics~Failure Reset", "Reset Failure", 185, 320, 140, 30, { 120, 83, 42 })
-
-  addGroup("Feedback", 345, 5, 300, 358)
-  local fb = {
-    { "ConnectedFB", "Connected", 362, 34 },
-    { "UpFB", "Up", 362, 66 },
-    { "DownFB", "Down", 362, 98 },
-    { "ScreenOnFB", "Screen On", 362, 130 },
-    { "LockedFB", "Locked", 500, 66 },
-    { "InputDVIFB", "Input DVI", 500, 98 },
-    { "FailureFB", "Failure", 500, 130 }
-  }
-  for _, item in ipairs(fb) do
-    led(item[1], item[2], item[3], item[4])
-    addLabel(item[2], item[3] + 26, item[4] + 2, 82, 16)
+local function addCommandGroups(prefix, titlePrefix)
+  local function name(suffix)
+    return prefix .. suffix
   end
 
-  addLabel("CB", 362, 168, 24, 16, "Right")
-  textBox("ControlByte", "Control Byte", 392, 164, 72, 24)
-  addLabel("FW", 470, 168, 24, 16, "Right")
-  textBox("FirmwareVersion", "Firmware Version", 500, 164, 100, 24)
+  addGroup(titlePrefix .. "Movement", 5, 5, 160, 106)
+  button(name("Up"), titlePrefix .. "Movement~Up", "Up", 15, 29, 65, 30, { 46, 125, 50 })
+  button(name("Down"), titlePrefix .. "Movement~Down", "Down", 90, 29, 65, 30, { 198, 76, 35 })
+  button(name("MovementToggle"), titlePrefix .. "Movement~Toggle", "Up / Down", 15, 67, 140, 30, { 46, 125, 50 })
 
-  addLabel("Last Tx", 362, 198, 50, 16, "Right")
-  textBox("LastTx", "Last Transmitted AHnet Frame", 420, 194, 180, 24)
+  addGroup(titlePrefix .. "Display", 175, 5, 160, 106)
+  button(name("ScreenOn"), titlePrefix .. "Display~On", "On", 185, 29, 65, 30, { 46, 125, 50 })
+  button(name("ScreenOff"), titlePrefix .. "Display~Off", "Off", 260, 29, 65, 30, { 198, 76, 35 })
+  button(name("PowerToggle"), titlePrefix .. "Display~Power Toggle", "On / Off", 185, 67, 140, 30, { 46, 125, 50 })
+
+  addGroup(titlePrefix .. "Input", 5, 118, 330, 68)
+  button(name("InputVGA"), titlePrefix .. "Input~VGA", "VGA", 15, 142, 95, 30, { 38, 103, 166 })
+  button(name("InputDVI"), titlePrefix .. "Input~DVI", "DVI", 120, 142, 95, 30, { 38, 103, 166 })
+  button(name("AutoConfig"), titlePrefix .. "Input~Auto Config", "Auto Config", 225, 142, 100, 30, { 38, 103, 166 })
+
+  addGroup(titlePrefix .. "Panel Buttons", 5, 193, 160, 68)
+  button(name("Lock"), titlePrefix .. "Buttons~Lock", "Lock", 15, 217, 65, 30, { 120, 83, 42 })
+  button(name("Unlock"), titlePrefix .. "Buttons~Unlock", "Unlock", 90, 217, 65, 30, { 120, 83, 42 })
+
+  addGroup(titlePrefix .. "Diagnostics", 175, 193, 160, 105)
+  button(name("Inquiry"), titlePrefix .. "Diagnostics~Inquiry", "Inquiry", 185, 217, 65, 30, { 80, 80, 80 })
+  button(name("Firmware"), titlePrefix .. "Diagnostics~Firmware", "Firmware", 260, 217, 65, 30, { 80, 80, 80 })
+  button(name("FailureReset"), titlePrefix .. "Diagnostics~Failure Reset", "Reset Failure", 185, 255, 140, 30, { 120, 83, 42 })
+end
+
+if CurrentPage == "Control" then
+  addCommandGroups("", "Broadcast ")
 elseif CurrentPage == "Setup" then
   addGroup("ERT-30 Network", 5, 5, 310, 120)
   addLabel("IP", 18, 34, 66, 16, "Right")
@@ -128,16 +108,17 @@ else
   local address = tonumber(string.match(CurrentPage, "Monitor (%d+)"))
   if address and address <= props["Monitor Count"].Value then
     local prefix = "Monitor" .. address
-    addGroup("Monitor " .. address .. " Feedback", 5, 5, 330, 250)
+    addCommandGroups(prefix, "")
+    addGroup("Monitor " .. address .. " Feedback", 345, 5, 300, 293)
 
     local monitorFeedback = {
-      { prefix .. "OnlineFB", "Online", 22, 35 },
-      { prefix .. "UpFB", "Up", 22, 70 },
-      { prefix .. "DownFB", "Down", 170, 70 },
-      { prefix .. "ScreenOnFB", "Screen On", 22, 105 },
-      { prefix .. "InputDVIFB", "Input DVI", 170, 105 },
-      { prefix .. "LockedFB", "Locked", 22, 140 },
-      { prefix .. "FailureFB", "Failure", 170, 140 }
+      { prefix .. "OnlineFB", "Online", 362, 35 },
+      { prefix .. "UpFB", "Up", 362, 70 },
+      { prefix .. "DownFB", "Down", 500, 70 },
+      { prefix .. "ScreenOnFB", "Screen On", 362, 105 },
+      { prefix .. "InputDVIFB", "Input DVI", 500, 105 },
+      { prefix .. "LockedFB", "Locked", 362, 140 },
+      { prefix .. "FailureFB", "Failure", 500, 140 }
     }
 
     for _, item in ipairs(monitorFeedback) do
@@ -145,11 +126,11 @@ else
       addLabel(item[2], item[3] + 26, item[4] + 2, 88, 16)
     end
 
-    addLabel("CB", 22, 180, 30, 16, "Right")
-    textBox(prefix .. "ControlByte", "Monitor " .. address .. "~Control Byte", 60, 176, 70, 24)
-    addLabel("FW", 150, 180, 30, 16, "Right")
-    textBox(prefix .. "FirmwareVersion", "Monitor " .. address .. "~Firmware", 188, 176, 110, 24)
-    addLabel("Last Rx", 22, 218, 52, 16, "Right")
-    textBox(prefix .. "LastRx", "Monitor " .. address .. "~Last Received Frame", 82, 214, 216, 24)
+    addLabel("CB", 362, 180, 30, 16, "Right")
+    textBox(prefix .. "ControlByte", "Monitor " .. address .. "~Control Byte", 400, 176, 70, 24)
+    addLabel("FW", 480, 180, 30, 16, "Right")
+    textBox(prefix .. "FirmwareVersion", "Monitor " .. address .. "~Firmware", 518, 176, 100, 24)
+    addLabel("Last Rx", 362, 218, 52, 16, "Right")
+    textBox(prefix .. "LastRx", "Monitor " .. address .. "~Last Received Frame", 422, 214, 196, 24)
   end
 end

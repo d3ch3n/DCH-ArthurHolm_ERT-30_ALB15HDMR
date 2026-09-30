@@ -4,6 +4,7 @@ local TCP = TcpSocket.New()
 local PollTimer = Timer.New()
 local rxBuffer = ""
 local syncingToggles = false
+local syncingMonitorToggles = {}
 local MonitorCount = tonumber(Properties["Monitor Count"].Value) or 1
 
 local DebugTx = false
@@ -29,6 +30,7 @@ TCP.ReconnectTimeout = 5
 
 Controls.DevicePort.String = Controls.DevicePort.String ~= "" and Controls.DevicePort.String or tostring(Properties["Default Port"].Value)
 Controls.Address.String = Controls.Address.String ~= "" and Controls.Address.String or "1"
+Controls.Broadcast.Boolean = true
 
 local function reportStatus(state, message)
   Controls.Status.Value = StatusState[state]
@@ -139,6 +141,10 @@ local function setMonitorFeedbackFromControlByte(address, cb1)
   setMonitorBoolean(address, "LockedFB", hasBit(cb1, 0x08))
   setMonitorBoolean(address, "InputDVIFB", hasBit(cb1, 0x10))
   setMonitorBoolean(address, "FailureFB", hasBit(cb1, 0x20))
+  syncingMonitorToggles[address] = true
+  setMonitorBoolean(address, "MovementToggle", hasBit(cb1, 0x01))
+  setMonitorBoolean(address, "PowerToggle", hasBit(cb1, 0x04))
+  syncingMonitorToggles[address] = false
 end
 
 local function parseFrame(frame)
@@ -167,6 +173,9 @@ local function parseFrame(frame)
   elseif command == 0x01 then
     setMonitorBoolean(address, "UpFB", value1 == 0x01)
     setMonitorBoolean(address, "DownFB", value1 == 0x00)
+    syncingMonitorToggles[address] = true
+    setMonitorBoolean(address, "MovementToggle", value1 == 0x01)
+    syncingMonitorToggles[address] = false
     if isSelectedAddress(address) then
       Controls.UpFB.Boolean = value1 == 0x01
       Controls.DownFB.Boolean = value1 == 0x00
@@ -174,6 +183,9 @@ local function parseFrame(frame)
     end
   elseif command == 0x02 then
     setMonitorBoolean(address, "ScreenOnFB", value1 == 0x01)
+    syncingMonitorToggles[address] = true
+    setMonitorBoolean(address, "PowerToggle", value1 == 0x01)
+    syncingMonitorToggles[address] = false
     if isSelectedAddress(address) then
       Controls.ScreenOnFB.Boolean = value1 == 0x01
       syncToggleStates()
@@ -316,13 +328,13 @@ end
 
 Controls.MovementToggle.EventHandler = function(ctrl)
   if not syncingToggles then
-    sendAHnet(0x01, ctrl.Boolean and 0x01 or 0x00, 0x00)
+    sendAHnetTo(0xF9, 0x01, ctrl.Boolean and 0x01 or 0x00, 0x00)
   end
 end
 
 Controls.PowerToggle.EventHandler = function(ctrl)
   if not syncingToggles then
-    sendAHnet(0x02, ctrl.Boolean and 0x01 or 0x00, 0x00)
+    sendAHnetTo(0xF9, 0x02, ctrl.Boolean and 0x01 or 0x00, 0x00)
   end
 end
 
@@ -334,17 +346,57 @@ local function onPress(handler)
   end
 end
 
-Controls.Up.EventHandler = onPress(function() sendAHnet(0x01, 0x01, 0x00) end)
-Controls.Down.EventHandler = onPress(function() sendAHnet(0x01, 0x00, 0x00) end)
-Controls.ScreenOn.EventHandler = onPress(function() sendAHnet(0x02, 0x01, 0x00) end)
-Controls.ScreenOff.EventHandler = onPress(function() sendAHnet(0x02, 0x00, 0x00) end)
-Controls.InputVGA.EventHandler = onPress(function() sendAHnet(0x03, 0x01, 0x00) end)
-Controls.InputDVI.EventHandler = onPress(function() sendAHnet(0x03, 0x00, 0x00) end)
-Controls.Lock.EventHandler = onPress(function() sendAHnet(0x04, 0x01, 0x00) end)
-Controls.Unlock.EventHandler = onPress(function() sendAHnet(0x04, 0x00, 0x00) end)
-Controls.AutoConfig.EventHandler = onPress(function() sendAHnet(0x05, 0x00, 0x00) end)
-Controls.FailureReset.EventHandler = onPress(function() sendAHnet(0x13, 0x00, 0x00) end)
-Controls.Inquiry.EventHandler = onPress(function() sendAHnet(0x14, 0x00, 0x00) end)
-Controls.Firmware.EventHandler = onPress(function() sendAHnet(0x15, 0x00, 0x00) end)
+Controls.Up.EventHandler = onPress(function() sendAHnetTo(0xF9, 0x01, 0x01, 0x00) end)
+Controls.Down.EventHandler = onPress(function() sendAHnetTo(0xF9, 0x01, 0x00, 0x00) end)
+Controls.ScreenOn.EventHandler = onPress(function() sendAHnetTo(0xF9, 0x02, 0x01, 0x00) end)
+Controls.ScreenOff.EventHandler = onPress(function() sendAHnetTo(0xF9, 0x02, 0x00, 0x00) end)
+Controls.InputVGA.EventHandler = onPress(function() sendAHnetTo(0xF9, 0x03, 0x01, 0x00) end)
+Controls.InputDVI.EventHandler = onPress(function() sendAHnetTo(0xF9, 0x03, 0x00, 0x00) end)
+Controls.Lock.EventHandler = onPress(function() sendAHnetTo(0xF9, 0x04, 0x01, 0x00) end)
+Controls.Unlock.EventHandler = onPress(function() sendAHnetTo(0xF9, 0x04, 0x00, 0x00) end)
+Controls.AutoConfig.EventHandler = onPress(function() sendAHnetTo(0xF9, 0x05, 0x00, 0x00) end)
+Controls.FailureReset.EventHandler = onPress(function() sendAHnetTo(0xF9, 0x13, 0x00, 0x00) end)
+Controls.Inquiry.EventHandler = onPress(function() sendAHnetTo(0xF9, 0x14, 0x00, 0x00) end)
+Controls.Firmware.EventHandler = onPress(function() sendAHnetTo(0xF9, 0x15, 0x00, 0x00) end)
+
+local monitorCommands = {
+  Up = { 0x01, 0x01, 0x00 },
+  Down = { 0x01, 0x00, 0x00 },
+  ScreenOn = { 0x02, 0x01, 0x00 },
+  ScreenOff = { 0x02, 0x00, 0x00 },
+  InputVGA = { 0x03, 0x01, 0x00 },
+  InputDVI = { 0x03, 0x00, 0x00 },
+  Lock = { 0x04, 0x01, 0x00 },
+  Unlock = { 0x04, 0x00, 0x00 },
+  AutoConfig = { 0x05, 0x00, 0x00 },
+  FailureReset = { 0x13, 0x00, 0x00 },
+  Inquiry = { 0x14, 0x00, 0x00 },
+  Firmware = { 0x15, 0x00, 0x00 }
+}
+
+for address = 1, MonitorCount do
+  local monitorAddress = address
+  local prefix = "Monitor" .. monitorAddress
+
+  Controls[prefix .. "MovementToggle"].EventHandler = function(ctrl)
+    if not syncingMonitorToggles[monitorAddress] then
+      sendAHnetTo(monitorAddress, 0x01, ctrl.Boolean and 0x01 or 0x00, 0x00)
+    end
+  end
+
+  Controls[prefix .. "PowerToggle"].EventHandler = function(ctrl)
+    if not syncingMonitorToggles[monitorAddress] then
+      sendAHnetTo(monitorAddress, 0x02, ctrl.Boolean and 0x01 or 0x00, 0x00)
+    end
+  end
+
+  for suffix, frame in pairs(monitorCommands) do
+    local commandSuffix = suffix
+    local commandFrame = frame
+    Controls[prefix .. commandSuffix].EventHandler = onPress(function()
+      sendAHnetTo(monitorAddress, commandFrame[1], commandFrame[2], commandFrame[3])
+    end)
+  end
+end
 
 connect()
