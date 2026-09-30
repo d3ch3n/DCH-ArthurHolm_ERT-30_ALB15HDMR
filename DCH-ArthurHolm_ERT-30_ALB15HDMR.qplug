@@ -2,8 +2,8 @@
 
 PluginInfo = {
   Name = "DCH~Arthur Holm~ERT-30 ALB15HDMR",
-  Version = "1.2.0",
-  BuildVersion = "1.2.0.0",
+  Version = "1.3.0",
+  BuildVersion = "1.3.0.0",
   Id = "8f4d8d6e-0a9a-4c6d-9d35-56df72fdbd86",
   Author = "DCH",
   Description = "Controls Arthur Holm / Albiral ALB15HDMR monitors through an ERT-30 AHnet IP interface."
@@ -222,6 +222,17 @@ for _, name in ipairs(indicators) do
   })
 end
 
+for _, name in ipairs({ "AllOnlineFB", "AllUpFB", "AllScreenOnFB", "AllInputDVIFB" }) do
+  table.insert(ctrls, {
+    Name = name,
+    ControlType = "Indicator",
+    IndicatorType = "Led",
+    Count = 1,
+    UserPin = true,
+    PinStyle = "Output"
+  })
+end
+
 for _, name in ipairs({ "LastTx", "LastRx", "ControlByte", "FirmwareVersion" }) do
   table.insert(ctrls, {
     Name = name,
@@ -320,6 +331,19 @@ local function addGroup(text, x, y, w, h)
   })
 end
 
+local function addTextBlock(text, x, y, w, h)
+  table.insert(graphics, {
+    Type = "Text",
+    Text = text,
+    Position = { x, y },
+    Size = { w, h },
+    FontSize = 11,
+    HTextAlign = "Left",
+    VTextAlign = "Top",
+    WordWrap = true
+  })
+end
+
 local function button(name, pretty, legend, x, y, w, h, color)
   layout[name] = {
     PrettyName = pretty,
@@ -382,6 +406,27 @@ end
 
 if CurrentPage == "Control" then
   addCommandGroups("", "Broadcast ")
+  addGroup("General Feedback", 345, 5, 300, 135)
+  local generalFeedback = {
+    { "AllOnlineFB", "All Online", 362, 35 },
+    { "AllUpFB", "All Up", 500, 35 },
+    { "AllScreenOnFB", "All Screen On", 362, 75 },
+    { "AllInputDVIFB", "All DVI", 500, 75 }
+  }
+  for _, item in ipairs(generalFeedback) do
+    led(item[1], "General Feedback~" .. item[2], item[3], item[4])
+    addLabel(item[2], item[3] + 26, item[4] + 2, 98, 16)
+  end
+
+  addGroup("CB Hex Reference", 345, 147, 300, 151)
+  addTextBlock(
+    "11  Up + Screen Off + DVI\n" ..
+    "12  Down + Screen Off + DVI\n" ..
+    "15  Up + Screen On + DVI\n" ..
+    "16  Down + Screen On + DVI\n\n" ..
+    "CB combines the active monitor states.",
+    362, 174, 266, 108
+  )
 elseif CurrentPage == "Setup" then
   addGroup("ERT-30 Network", 5, 5, 310, 120)
   addLabel("IP", 18, 34, 66, 16, "Right")
@@ -547,6 +592,26 @@ local function setMonitorString(address, suffix, value)
   if control then control.String = value end
 end
 
+local function updateGeneralFeedback()
+  local allOnline = MonitorCount > 0
+  local allUp = MonitorCount > 0
+  local allScreenOn = MonitorCount > 0
+  local allInputDVI = MonitorCount > 0
+
+  for address = 1, MonitorCount do
+    local online = monitorControl(address, "OnlineFB").Boolean
+    allOnline = allOnline and online
+    allUp = allUp and online and monitorControl(address, "UpFB").Boolean
+    allScreenOn = allScreenOn and online and monitorControl(address, "ScreenOnFB").Boolean
+    allInputDVI = allInputDVI and online and monitorControl(address, "InputDVIFB").Boolean
+  end
+
+  Controls.AllOnlineFB.Boolean = allOnline
+  Controls.AllUpFB.Boolean = allUp
+  Controls.AllScreenOnFB.Boolean = allScreenOn
+  Controls.AllInputDVIFB.Boolean = allInputDVI
+end
+
 local function isSelectedAddress(address)
   return not Controls.Broadcast.Boolean
     and address == clampAddress(Controls.Address.String)
@@ -637,6 +702,7 @@ local function parseFrame(frame)
     setMonitorBoolean(address, "FailureFB", false)
     if isSelectedAddress(address) then Controls.FailureFB.Boolean = false end
   end
+  updateGeneralFeedback()
 end
 
 local function parseResponse()
@@ -667,6 +733,7 @@ local function pollDevice()
       setMonitorBoolean(address, "OnlineFB", false)
       sendAHnetTo(address, 0x14, 0x00, 0x00)
     end
+    updateGeneralFeedback()
   end
 end
 
@@ -674,6 +741,7 @@ local function setAllMonitorsOffline()
   for address = 1, MonitorCount do
     setMonitorBoolean(address, "OnlineFB", false)
   end
+  updateGeneralFeedback()
 end
 
 local function disconnect()

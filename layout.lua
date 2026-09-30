@@ -24,6 +24,19 @@ local function addGroup(text, x, y, w, h)
   })
 end
 
+local function addTextBlock(text, x, y, w, h)
+  table.insert(graphics, {
+    Type = "Text",
+    Text = text,
+    Position = { x, y },
+    Size = { w, h },
+    FontSize = 11,
+    HTextAlign = "Left",
+    VTextAlign = "Top",
+    WordWrap = true
+  })
+end
+
 local function button(name, pretty, legend, x, y, w, h, color)
   layout[name] = {
     PrettyName = pretty,
@@ -86,6 +99,27 @@ end
 
 if CurrentPage == "Control" then
   addCommandGroups("", "Broadcast ")
+  addGroup("General Feedback", 345, 5, 300, 135)
+  local generalFeedback = {
+    { "AllOnlineFB", "All Online", 362, 35 },
+    { "AllUpFB", "All Up", 500, 35 },
+    { "AllScreenOnFB", "All Screen On", 362, 75 },
+    { "AllInputDVIFB", "All DVI", 500, 75 }
+  }
+  for _, item in ipairs(generalFeedback) do
+    led(item[1], "General Feedback~" .. item[2], item[3], item[4])
+    addLabel(item[2], item[3] + 26, item[4] + 2, 98, 16)
+  end
+
+  addGroup("CB Hex Reference", 345, 147, 300, 151)
+  addTextBlock(
+    "11  Up + Screen Off + DVI\n" ..
+    "12  Down + Screen Off + DVI\n" ..
+    "15  Up + Screen On + DVI\n" ..
+    "16  Down + Screen On + DVI\n\n" ..
+    "CB combines the active monitor states.",
+    362, 174, 266, 108
+  )
 elseif CurrentPage == "Setup" then
   addGroup("ERT-30 Network", 5, 5, 310, 120)
   addLabel("IP", 18, 34, 66, 16, "Right")

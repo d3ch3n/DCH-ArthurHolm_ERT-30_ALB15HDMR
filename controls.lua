@@ -98,6 +98,17 @@ for _, name in ipairs(indicators) do
   })
 end
 
+for _, name in ipairs({ "AllOnlineFB", "AllUpFB", "AllScreenOnFB", "AllInputDVIFB" }) do
+  table.insert(ctrls, {
+    Name = name,
+    ControlType = "Indicator",
+    IndicatorType = "Led",
+    Count = 1,
+    UserPin = true,
+    PinStyle = "Output"
+  })
+end
+
 for _, name in ipairs({ "LastTx", "LastRx", "ControlByte", "FirmwareVersion" }) do
   table.insert(ctrls, {
     Name = name,

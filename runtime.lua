@@ -110,6 +110,26 @@ local function setMonitorString(address, suffix, value)
   if control then control.String = value end
 end
 
+local function updateGeneralFeedback()
+  local allOnline = MonitorCount > 0
+  local allUp = MonitorCount > 0
+  local allScreenOn = MonitorCount > 0
+  local allInputDVI = MonitorCount > 0
+
+  for address = 1, MonitorCount do
+    local online = monitorControl(address, "OnlineFB").Boolean
+    allOnline = allOnline and online
+    allUp = allUp and online and monitorControl(address, "UpFB").Boolean
+    allScreenOn = allScreenOn and online and monitorControl(address, "ScreenOnFB").Boolean
+    allInputDVI = allInputDVI and online and monitorControl(address, "InputDVIFB").Boolean
+  end
+
+  Controls.AllOnlineFB.Boolean = allOnline
+  Controls.AllUpFB.Boolean = allUp
+  Controls.AllScreenOnFB.Boolean = allScreenOn
+  Controls.AllInputDVIFB.Boolean = allInputDVI
+end
+
 local function isSelectedAddress(address)
   return not Controls.Broadcast.Boolean
     and address == clampAddress(Controls.Address.String)
@@ -200,6 +220,7 @@ local function parseFrame(frame)
     setMonitorBoolean(address, "FailureFB", false)
     if isSelectedAddress(address) then Controls.FailureFB.Boolean = false end
   end
+  updateGeneralFeedback()
 end
 
 local function parseResponse()
@@ -230,6 +251,7 @@ local function pollDevice()
       setMonitorBoolean(address, "OnlineFB", false)
       sendAHnetTo(address, 0x14, 0x00, 0x00)
     end
+    updateGeneralFeedback()
   end
 end
 
@@ -237,6 +259,7 @@ local function setAllMonitorsOffline()
   for address = 1, MonitorCount do
     setMonitorBoolean(address, "OnlineFB", false)
   end
+  updateGeneralFeedback()
 end
 
 local function disconnect()

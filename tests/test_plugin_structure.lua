@@ -22,14 +22,27 @@ assert(controlNames.Monitor1OnlineFB, "missing Monitor 1 online feedback")
 assert(controlNames.Monitor3LastRx, "missing Monitor 3 last response")
 assert(controlNames.Monitor1MovementToggle, "missing Monitor 1 movement toggle")
 assert(controlNames.Monitor3ScreenOn, "missing Monitor 3 screen-on command")
+assert(controlNames.AllOnlineFB, "missing consolidated online feedback")
+assert(controlNames.AllUpFB, "missing consolidated movement feedback")
+assert(controlNames.AllScreenOnFB, "missing consolidated power feedback")
+assert(controlNames.AllInputDVIFB, "missing consolidated input feedback")
 
 for pageIndex, page in ipairs(pages) do
   props.page_index.Value = pageIndex
-  local layout = GetControlLayout(props)
+  local layout, graphics = GetControlLayout(props)
   if page.name == "Control" then
     assert(layout.Up, "broadcast page has no movement command")
     assert(layout.PowerToggle, "broadcast page has no power toggle")
     assert(not layout.Address, "broadcast page should not expose an address")
+    assert(layout.AllOnlineFB, "broadcast page has no general online feedback")
+    assert(layout.AllUpFB, "broadcast page has no general movement feedback")
+    local hasControlByteReference = false
+    for _, graphic in ipairs(graphics) do
+      if graphic.Text and string.find(graphic.Text, "11  Up", 1, true) then
+        hasControlByteReference = true
+      end
+    end
+    assert(hasControlByteReference, "broadcast page has no CB reference")
   elseif page.name == "Monitor 1" then
     assert(layout.Monitor1OnlineFB, "Monitor 1 page has no online indicator")
     assert(layout.Monitor1ControlByte, "Monitor 1 page has no control byte")
