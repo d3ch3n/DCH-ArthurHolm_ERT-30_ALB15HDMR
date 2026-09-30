@@ -1,0 +1,593 @@
+-- DCH Arthur Holm ERT-30 ALB15HDMR Q-SYS Plugin
+
+PluginInfo = {
+  Name = "DCH Arthur Holm ERT-30 ALB15HDMR",
+  Version = "1.0",
+  BuildVersion = "1.0.0.0",
+  Id = "8f4d8d6e-0a9a-4c6d-9d35-56df72fdbd86",
+  Author = "DCH",
+  Description = "Controls Arthur Holm / Albiral ALB15HDMR monitors through an ERT-30 AHnet IP interface."
+}
+
+
+function GetColor(props)
+  return { 34, 88, 122 }
+end
+
+function GetPrettyName(props)
+  return "Arthur Holm ERT-30 ALB15HDMR v" .. PluginInfo.Version
+end
+
+PageNames = { "Control", "Setup" }
+
+function GetPages(props)
+  local pages = {}
+  for ix, name in ipairs(PageNames) do
+  table.insert(pages, { name = name })
+end
+
+  return pages
+end
+
+function GetModel(props)
+  local model = {}
+  table.insert(model, {
+  Name = "ALB15HDMR via ERT-30",
+  Value = "ALB15HDMR"
+})
+
+  return model
+end
+
+function GetProperties()
+  local props = {}
+  table.insert(props, {
+  Name = "Debug Print",
+  Type = "enum",
+  Choices = { "None", "Tx/Rx", "Tx", "Rx", "Function Calls", "All" },
+  Value = "None"
+})
+
+table.insert(props, {
+  Name = "Default Port",
+  Type = "integer",
+  Min = 1,
+  Max = 65535,
+  Value = 10001
+})
+
+table.insert(props, {
+  Name = "Poll Interval",
+  Type = "integer",
+  Min = 0,
+  Max = 300,
+  Value = 10
+})
+
+  return props
+end
+
+function GetPins(props)
+  local pins = {}
+  -- No component pins.
+
+  return pins
+end
+
+function RectifyProperties(props)
+  if props["Default Port"].Value < 1 then
+  props["Default Port"].Value = 10001
+elseif props["Default Port"].Value > 65535 then
+  props["Default Port"].Value = 65535
+end
+
+if props["Poll Interval"].Value < 0 then
+  props["Poll Interval"].Value = 0
+end
+
+  return props
+end
+
+function GetComponents(props)
+  local components = {}
+  -- No internal Q-SYS components.
+
+  return components
+end
+
+function GetWiring(props)
+  local wiring = {}
+  -- No internal Q-SYS wiring.
+
+  return wiring
+end
+
+function GetControls(props)
+  local ctrls = {}
+  table.insert(ctrls, {
+  Name = "Status",
+  ControlType = "Indicator",
+  IndicatorType = "Status",
+  Count = 1,
+  UserPin = true,
+  PinStyle = "Output"
+})
+
+table.insert(ctrls, {
+  Name = "DeviceIP",
+  ControlType = "Text",
+  Count = 1,
+  UserPin = false,
+  PinStyle = "none"
+})
+
+table.insert(ctrls, {
+  Name = "DevicePort",
+  ControlType = "Text",
+  Count = 1,
+  UserPin = false,
+  PinStyle = "none"
+})
+
+table.insert(ctrls, {
+  Name = "Address",
+  ControlType = "Text",
+  Count = 1,
+  UserPin = true,
+  PinStyle = "Both"
+})
+
+table.insert(ctrls, {
+  Name = "Broadcast",
+  ControlType = "Button",
+  ButtonType = "Toggle",
+  Count = 1,
+  UserPin = true,
+  PinStyle = "Both"
+})
+
+local commandButtons = {
+  "Up",
+  "Down",
+  "ScreenOn",
+  "ScreenOff",
+  "InputVGA",
+  "InputDVI",
+  "Lock",
+  "Unlock",
+  "AutoConfig",
+  "FailureReset",
+  "Inquiry",
+  "Firmware"
+}
+
+for _, name in ipairs(commandButtons) do
+  table.insert(ctrls, {
+    Name = name,
+    ControlType = "Button",
+    ButtonType = "Momentary",
+    Count = 1,
+    UserPin = true,
+    PinStyle = "Both"
+  })
+end
+
+local indicators = {
+  "UpFB",
+  "DownFB",
+  "ScreenOnFB",
+  "LockedFB",
+  "InputDVIFB",
+  "FailureFB",
+  "ConnectedFB"
+}
+
+for _, name in ipairs(indicators) do
+  table.insert(ctrls, {
+    Name = name,
+    ControlType = "Indicator",
+    IndicatorType = "Led",
+    Count = 1,
+    UserPin = true,
+    PinStyle = "Output"
+  })
+end
+
+for _, name in ipairs({ "LastTx", "LastRx", "ControlByte", "FirmwareVersion" }) do
+  table.insert(ctrls, {
+    Name = name,
+    ControlType = "Text",
+    Count = 1,
+    UserPin = false,
+    PinStyle = "none"
+  })
+end
+
+  return ctrls
+end
+
+function GetControlLayout(props)
+  local layout = {}
+  local graphics = {}
+  local CurrentPage = PageNames[props["page_index"].Value]
+
+local function addLabel(text, x, y, w, h, align)
+  table.insert(graphics, {
+    Type = "Text",
+    Text = text,
+    Position = { x, y },
+    Size = { w, h },
+    FontSize = 12,
+    HTextAlign = align or "Left"
+  })
+end
+
+local function addGroup(text, x, y, w, h)
+  table.insert(graphics, {
+    Type = "GroupBox",
+    Text = text,
+    Fill = { 230, 234, 237 },
+    StrokeWidth = 1,
+    Position = { x, y },
+    Size = { w, h }
+  })
+end
+
+local function button(name, pretty, x, y, w, h, color)
+  layout[name] = {
+    PrettyName = pretty,
+    Style = "Button",
+    Position = { x, y },
+    Size = { w, h },
+    Color = color or { 34, 88, 122 }
+  }
+end
+
+local function textBox(name, pretty, x, y, w, h)
+  layout[name] = {
+    PrettyName = pretty,
+    Style = "Text",
+    Position = { x, y },
+    Size = { w, h }
+  }
+end
+
+local function led(name, pretty, x, y)
+  layout[name] = {
+    PrettyName = pretty,
+    Style = "Led",
+    Position = { x, y },
+    Size = { 20, 20 },
+    Color = { 56, 142, 60 }
+  }
+end
+
+if CurrentPage == "Control" then
+  addGroup("Monitor", 5, 5, 330, 225)
+  addLabel("Address", 18, 34, 64, 16, "Right")
+  textBox("Address", "AHnet Address", 88, 30, 46, 24)
+  button("Broadcast", "Broadcast", 146, 30, 86, 24, { 96, 96, 96 })
+
+  button("Up", "Movement~Up", 22, 68, 88, 32, { 46, 125, 50 })
+  button("Down", "Movement~Down", 118, 68, 88, 32, { 198, 76, 35 })
+  button("Inquiry", "Diagnostics~Inquiry", 214, 68, 88, 32, { 80, 80, 80 })
+
+  button("ScreenOn", "Display~On", 22, 110, 88, 32, { 46, 125, 50 })
+  button("ScreenOff", "Display~Off", 118, 110, 88, 32, { 198, 76, 35 })
+  button("Firmware", "Diagnostics~Firmware", 214, 110, 88, 32, { 80, 80, 80 })
+
+  button("InputVGA", "Input~VGA", 22, 152, 88, 32, { 38, 103, 166 })
+  button("InputDVI", "Input~DVI", 118, 152, 88, 32, { 38, 103, 166 })
+  button("AutoConfig", "Input~Auto Config", 214, 152, 88, 32, { 38, 103, 166 })
+
+  button("Lock", "Buttons~Lock", 22, 194, 88, 24, { 120, 83, 42 })
+  button("Unlock", "Buttons~Unlock", 118, 194, 88, 24, { 120, 83, 42 })
+  button("FailureReset", "Diagnostics~Failure Reset", 214, 194, 88, 24, { 120, 83, 42 })
+
+  addGroup("Feedback", 345, 5, 300, 225)
+  local fb = {
+    { "ConnectedFB", "Connected", 362, 34 },
+    { "UpFB", "Up", 362, 66 },
+    { "DownFB", "Down", 362, 98 },
+    { "ScreenOnFB", "Screen On", 362, 130 },
+    { "LockedFB", "Locked", 500, 66 },
+    { "InputDVIFB", "Input DVI", 500, 98 },
+    { "FailureFB", "Failure", 500, 130 }
+  }
+  for _, item in ipairs(fb) do
+    led(item[1], item[2], item[3], item[4])
+    addLabel(item[2], item[3] + 26, item[4] + 2, 82, 16)
+  end
+
+  addLabel("CB", 362, 168, 24, 16, "Right")
+  textBox("ControlByte", "Control Byte", 392, 164, 72, 24)
+  addLabel("FW", 470, 168, 24, 16, "Right")
+  textBox("FirmwareVersion", "Firmware Version", 500, 164, 100, 24)
+
+  addLabel("Last Tx", 362, 198, 50, 16, "Right")
+  textBox("LastTx", "Last Transmitted AHnet Frame", 420, 194, 180, 24)
+elseif CurrentPage == "Setup" then
+  addGroup("ERT-30 Network", 5, 5, 310, 120)
+  addLabel("IP", 18, 34, 66, 16, "Right")
+  textBox("DeviceIP", "ERT-30 IP Address", 92, 30, 150, 24)
+  addLabel("Port", 18, 68, 66, 16, "Right")
+  textBox("DevicePort", "ERT-30 TCP Port", 92, 64, 72, 24)
+  layout["Status"] = {
+    PrettyName = "Connection Status",
+    Style = "Status",
+    Position = { 92, 96 },
+    Size = { 200, 24 }
+  }
+
+  addGroup("Diagnostics", 325, 5, 320, 120)
+  addLabel("Last Rx", 340, 34, 58, 16, "Right")
+  textBox("LastRx", "Last Received AHnet Frame", 406, 30, 200, 24)
+  addLabel("Last Tx", 340, 68, 58, 16, "Right")
+  textBox("LastTx", "Last Transmitted AHnet Frame", 406, 64, 200, 24)
+end
+
+  return layout, graphics
+end
+
+if Controls then
+  local StatusState = { OK = 0, COMPROMISED = 1, FAULT = 2, NOTPRESENT = 3, MISSING = 4, INITIALIZING = 5 }
+local EmptyIPMessage = "Enter ERT-30 IP"
+local TCP = TcpSocket.New()
+local PollTimer = Timer.New()
+local rxBuffer = ""
+
+local DebugTx = false
+local DebugRx = false
+local DebugFunction = false
+local DebugPrint = Properties["Debug Print"].Value
+
+if DebugPrint == "Tx/Rx" then
+  DebugTx, DebugRx = true, true
+elseif DebugPrint == "Tx" then
+  DebugTx = true
+elseif DebugPrint == "Rx" then
+  DebugRx = true
+elseif DebugPrint == "Function Calls" then
+  DebugFunction = true
+elseif DebugPrint == "All" then
+  DebugTx, DebugRx, DebugFunction = true, true, true
+end
+
+TCP.ReadTimeout = 5
+TCP.WriteTimeout = 5
+TCP.ReconnectTimeout = 5
+
+Controls.DevicePort.String = Controls.DevicePort.String ~= "" and Controls.DevicePort.String or tostring(Properties["Default Port"].Value)
+Controls.Address.String = Controls.Address.String ~= "" and Controls.Address.String or "1"
+
+local function reportStatus(state, message)
+  Controls.Status.Value = StatusState[state]
+  Controls.Status.String = message or ""
+end
+
+local function byteToHex(byte)
+  return string.format("%02X", byte or 0)
+end
+
+local function frameToHex(frame)
+  local out = {}
+  for index = 1, #frame do
+    out[#out + 1] = byteToHex(string.byte(frame, index))
+  end
+  return table.concat(out, " ")
+end
+
+local function hasBit(value, bitValue)
+  return math.floor(value / bitValue) % 2 == 1
+end
+
+local function clampAddress(address)
+  address = tonumber(address) or 1
+  if address < 1 then
+    return 1
+  elseif address > 30 then
+    return 30
+  end
+  return math.floor(address)
+end
+
+local function getAddress()
+  if Controls.Broadcast.Boolean then
+    return 0xF9
+  end
+  local address = clampAddress(Controls.Address.String)
+  Controls.Address.String = tostring(address)
+  return address
+end
+
+local function connected()
+  return TCP.IsConnected
+end
+
+local function writeFrame(frame)
+  Controls.LastTx.String = frameToHex(frame)
+  if DebugTx then print("Tx: " .. Controls.LastTx.String) end
+
+  if connected() then
+    TCP:Write(frame)
+  else
+    reportStatus("MISSING", "Socket disconnected")
+  end
+end
+
+local function sendAHnet(command, value1, value2)
+  if DebugFunction then print("sendAHnet()") end
+  writeFrame(string.char(0xFA, getAddress(), command, value1 or 0x00, value2 or 0x00))
+end
+
+local function setFeedbackFromControlByte(cb1)
+  Controls.ControlByte.String = byteToHex(cb1)
+  Controls.UpFB.Boolean = hasBit(cb1, 0x01)
+  Controls.DownFB.Boolean = hasBit(cb1, 0x02)
+  Controls.ScreenOnFB.Boolean = hasBit(cb1, 0x04)
+  Controls.LockedFB.Boolean = hasBit(cb1, 0x08)
+  Controls.InputDVIFB.Boolean = hasBit(cb1, 0x10)
+  Controls.FailureFB.Boolean = hasBit(cb1, 0x20)
+end
+
+local function parseFrame(frame)
+  local b0, address, command, value1, value2 = string.byte(frame, 1, 5)
+  Controls.LastRx.String = frameToHex(frame)
+  if DebugRx then print("Rx: " .. Controls.LastRx.String) end
+
+  if b0 ~= 0xFB then
+    reportStatus("COMPROMISED", "Unexpected response")
+    return
+  end
+
+  reportStatus("OK", "AHnet response from " .. tostring(address))
+
+  if command == 0x14 then
+    setFeedbackFromControlByte(value1)
+  elseif command == 0x15 then
+    Controls.FirmwareVersion.String = byteToHex(value1) .. "." .. byteToHex(value2)
+  elseif command == 0x01 then
+    Controls.UpFB.Boolean = value1 == 0x01
+    Controls.DownFB.Boolean = value1 == 0x00
+  elseif command == 0x02 then
+    Controls.ScreenOnFB.Boolean = value1 == 0x01
+  elseif command == 0x03 then
+    Controls.InputDVIFB.Boolean = value1 == 0x00
+  elseif command == 0x04 then
+    Controls.LockedFB.Boolean = value1 == 0x01
+  elseif command == 0x13 then
+    Controls.FailureFB.Boolean = false
+  end
+end
+
+local function parseResponse()
+  if TCP.BufferLength and TCP.BufferLength > 0 then
+    rxBuffer = rxBuffer .. TCP:Read(TCP.BufferLength)
+  end
+
+  while #rxBuffer >= 5 do
+    local start = string.find(rxBuffer, string.char(0xFB), 1, true)
+    if not start then
+      rxBuffer = ""
+      return
+    elseif start > 1 then
+      rxBuffer = string.sub(rxBuffer, start)
+    end
+
+    if #rxBuffer >= 5 then
+      local frame = string.sub(rxBuffer, 1, 5)
+      rxBuffer = string.sub(rxBuffer, 6)
+      parseFrame(frame)
+    end
+  end
+end
+
+local function pollDevice()
+  if tonumber(Properties["Poll Interval"].Value) > 0 and connected() and not Controls.Broadcast.Boolean then
+    sendAHnet(0x14, 0x00, 0x00)
+  end
+end
+
+local function disconnect()
+  PollTimer:Stop()
+  Controls.ConnectedFB.Boolean = false
+  if connected() then
+    TCP:Disconnect()
+  end
+end
+
+local function connect()
+  local ip = Controls.DeviceIP.String
+  local port = tonumber(Controls.DevicePort.String) or Properties["Default Port"].Value
+
+  if ip == "" or ip == EmptyIPMessage then
+    reportStatus("MISSING", EmptyIPMessage)
+    return
+  end
+
+  reportStatus("INITIALIZING", "Connecting")
+  if DebugFunction then print("Connecting to " .. ip .. ":" .. tostring(port)) end
+  TCP:Connect(ip, port)
+end
+
+TCP.Connected = function()
+  Controls.ConnectedFB.Boolean = true
+  reportStatus("OK", "Connected")
+  if tonumber(Properties["Poll Interval"].Value) > 0 then
+    PollTimer:Start(Properties["Poll Interval"].Value)
+  end
+  pollDevice()
+end
+
+TCP.Reconnect = function()
+  Controls.ConnectedFB.Boolean = false
+  reportStatus("INITIALIZING", "Reconnecting")
+end
+
+TCP.Closed = function()
+  Controls.ConnectedFB.Boolean = false
+  reportStatus("MISSING", "Socket closed")
+  PollTimer:Stop()
+end
+
+TCP.Error = function()
+  Controls.ConnectedFB.Boolean = false
+  reportStatus("MISSING", "Socket error")
+  PollTimer:Stop()
+end
+
+TCP.Timeout = function()
+  Controls.ConnectedFB.Boolean = false
+  reportStatus("MISSING", "Socket timeout")
+  PollTimer:Stop()
+end
+
+TCP.Data = parseResponse
+PollTimer.EventHandler = pollDevice
+
+Controls.DeviceIP.EventHandler = function()
+  disconnect()
+  connect()
+end
+
+Controls.DevicePort.EventHandler = function()
+  disconnect()
+  connect()
+end
+
+Controls.Address.EventHandler = function()
+  Controls.Address.String = tostring(clampAddress(Controls.Address.String))
+end
+
+Controls.Broadcast.EventHandler = function(ctrl)
+  if ctrl.Boolean then
+    reportStatus("OK", "Broadcast address F9")
+  else
+    pollDevice()
+  end
+end
+
+local function onPress(handler)
+  return function(ctrl)
+    if ctrl.Boolean then
+      handler()
+    end
+  end
+end
+
+Controls.Up.EventHandler = onPress(function() sendAHnet(0x01, 0x01, 0x00) end)
+Controls.Down.EventHandler = onPress(function() sendAHnet(0x01, 0x00, 0x00) end)
+Controls.ScreenOn.EventHandler = onPress(function() sendAHnet(0x02, 0x01, 0x00) end)
+Controls.ScreenOff.EventHandler = onPress(function() sendAHnet(0x02, 0x00, 0x00) end)
+Controls.InputVGA.EventHandler = onPress(function() sendAHnet(0x03, 0x01, 0x00) end)
+Controls.InputDVI.EventHandler = onPress(function() sendAHnet(0x03, 0x00, 0x00) end)
+Controls.Lock.EventHandler = onPress(function() sendAHnet(0x04, 0x01, 0x00) end)
+Controls.Unlock.EventHandler = onPress(function() sendAHnet(0x04, 0x00, 0x00) end)
+Controls.AutoConfig.EventHandler = onPress(function() sendAHnet(0x05, 0x00, 0x00) end)
+Controls.FailureReset.EventHandler = onPress(function() sendAHnet(0x13, 0x00, 0x00) end)
+Controls.Inquiry.EventHandler = onPress(function() sendAHnet(0x14, 0x00, 0x00) end)
+Controls.Firmware.EventHandler = onPress(function() sendAHnet(0x15, 0x00, 0x00) end)
+
+connect()
+
+end
