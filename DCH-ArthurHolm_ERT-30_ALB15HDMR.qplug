@@ -2,8 +2,8 @@
 
 PluginInfo = {
   Name = "DCH~Arthur Holm~ERT-30 ALB15HDMR",
-  Version = "1.0.4",
-  BuildVersion = "1.0.0.4",
+  Version = "1.1.0",
+  BuildVersion = "1.1.0.0",
   Id = "8f4d8d6e-0a9a-4c6d-9d35-56df72fdbd86",
   Author = "DCH",
   Description = "Controls Arthur Holm / Albiral ALB15HDMR monitors through an ERT-30 AHnet IP interface."
@@ -24,6 +24,10 @@ function GetPages(props)
   local pages = {}
   for ix, name in ipairs(PageNames) do
   table.insert(pages, { name = name })
+end
+
+for address = 1, props["Monitor Count"].Value do
+  table.insert(pages, { name = "Monitor " .. address })
 end
 
   return pages
@@ -64,6 +68,14 @@ table.insert(props, {
   Value = 10
 })
 
+table.insert(props, {
+  Name = "Monitor Count",
+  Type = "integer",
+  Min = 1,
+  Max = 30,
+  Value = 1
+})
+
   return props
 end
 
@@ -83,6 +95,12 @@ end
 
 if props["Poll Interval"].Value < 0 then
   props["Poll Interval"].Value = 0
+end
+
+if props["Monitor Count"].Value < 1 then
+  props["Monitor Count"].Value = 1
+elseif props["Monitor Count"].Value > 30 then
+  props["Monitor Count"].Value = 30
 end
 
   return props
@@ -214,13 +232,49 @@ for _, name in ipairs({ "LastTx", "LastRx", "ControlByte", "FirmwareVersion" }) 
   })
 end
 
+local monitorCount = props["Monitor Count"].Value
+local monitorIndicators = {
+  "OnlineFB",
+  "UpFB",
+  "DownFB",
+  "ScreenOnFB",
+  "LockedFB",
+  "InputDVIFB",
+  "FailureFB"
+}
+
+for address = 1, monitorCount do
+  for _, suffix in ipairs(monitorIndicators) do
+    table.insert(ctrls, {
+      Name = "Monitor" .. address .. suffix,
+      ControlType = "Indicator",
+      IndicatorType = "Led",
+      Count = 1,
+      UserPin = true,
+      PinStyle = "Output"
+    })
+  end
+
+  for _, suffix in ipairs({ "ControlByte", "FirmwareVersion", "LastRx" }) do
+    table.insert(ctrls, {
+      Name = "Monitor" .. address .. suffix,
+      ControlType = "Text",
+      Count = 1,
+      UserPin = true,
+      PinStyle = "Output"
+    })
+  end
+end
+
   return ctrls
 end
 
 function GetControlLayout(props)
   local layout = {}
   local graphics = {}
-  local CurrentPage = PageNames[props["page_index"].Value]
+  local pageIndex = props["page_index"].Value
+local CurrentPage = pageIndex <= #PageNames and PageNames[pageIndex]
+  or "Monitor " .. tostring(pageIndex - #PageNames)
 
 local function addLabel(text, x, y, w, h, align)
   table.insert(graphics, {
@@ -344,6 +398,34 @@ elseif CurrentPage == "Setup" then
   textBox("LastRx", "Last Received AHnet Frame", 406, 30, 200, 24)
   addLabel("Last Tx", 340, 68, 58, 16, "Right")
   textBox("LastTx", "Last Transmitted AHnet Frame", 406, 64, 200, 24)
+else
+  local address = tonumber(string.match(CurrentPage, "Monitor (%d+)"))
+  if address and address <= props["Monitor Count"].Value then
+    local prefix = "Monitor" .. address
+    addGroup("Monitor " .. address .. " Feedback", 5, 5, 330, 250)
+
+    local monitorFeedback = {
+      { prefix .. "OnlineFB", "Online", 22, 35 },
+      { prefix .. "UpFB", "Up", 22, 70 },
+      { prefix .. "DownFB", "Down", 170, 70 },
+      { prefix .. "ScreenOnFB", "Screen On", 22, 105 },
+      { prefix .. "InputDVIFB", "Input DVI", 170, 105 },
+      { prefix .. "LockedFB", "Locked", 22, 140 },
+      { prefix .. "FailureFB", "Failure", 170, 140 }
+    }
+
+    for _, item in ipairs(monitorFeedback) do
+      led(item[1], "Monitor " .. address .. "~" .. item[2], item[3], item[4])
+      addLabel(item[2], item[3] + 26, item[4] + 2, 88, 16)
+    end
+
+    addLabel("CB", 22, 180, 30, 16, "Right")
+    textBox(prefix .. "ControlByte", "Monitor " .. address .. "~Control Byte", 60, 176, 70, 24)
+    addLabel("FW", 150, 180, 30, 16, "Right")
+    textBox(prefix .. "FirmwareVersion", "Monitor " .. address .. "~Firmware", 188, 176, 110, 24)
+    addLabel("Last Rx", 22, 218, 52, 16, "Right")
+    textBox(prefix .. "LastRx", "Monitor " .. address .. "~Last Received Frame", 82, 214, 216, 24)
+  end
 end
 
   return layout, graphics
@@ -356,6 +438,7 @@ local TCP = TcpSocket.New()
 local PollTimer = Timer.New()
 local rxBuffer = ""
 local syncingToggles = false
+local MonitorCount = tonumber(Properties["Monitor Count"].Value) or 1
 
 local DebugTx = false
 local DebugRx = false
@@ -406,8 +489,8 @@ local function clampAddress(address)
   address = tonumber(address) or 1
   if address < 1 then
     return 1
-  elseif address > 30 then
-    return 30
+  elseif address > MonitorCount then
+    return MonitorCount
   end
   return math.floor(address)
 end
@@ -441,6 +524,29 @@ local function sendAHnet(command, value1, value2)
   writeFrame(string.char(0xFA, getAddress(), command, value1 or 0x00, value2 or 0x00))
 end
 
+local function sendAHnetTo(address, command, value1, value2)
+  writeFrame(string.char(0xFA, address, command, value1 or 0x00, value2 or 0x00))
+end
+
+local function monitorControl(address, suffix)
+  return Controls["Monitor" .. address .. suffix]
+end
+
+local function setMonitorBoolean(address, suffix, value)
+  local control = monitorControl(address, suffix)
+  if control then control.Boolean = value end
+end
+
+local function setMonitorString(address, suffix, value)
+  local control = monitorControl(address, suffix)
+  if control then control.String = value end
+end
+
+local function isSelectedAddress(address)
+  return not Controls.Broadcast.Boolean
+    and address == clampAddress(Controls.Address.String)
+end
+
 local function syncToggleStates()
   syncingToggles = true
   Controls.MovementToggle.Boolean = Controls.UpFB.Boolean
@@ -459,6 +565,16 @@ local function setFeedbackFromControlByte(cb1)
   syncToggleStates()
 end
 
+local function setMonitorFeedbackFromControlByte(address, cb1)
+  setMonitorString(address, "ControlByte", byteToHex(cb1))
+  setMonitorBoolean(address, "UpFB", hasBit(cb1, 0x01))
+  setMonitorBoolean(address, "DownFB", hasBit(cb1, 0x02))
+  setMonitorBoolean(address, "ScreenOnFB", hasBit(cb1, 0x04))
+  setMonitorBoolean(address, "LockedFB", hasBit(cb1, 0x08))
+  setMonitorBoolean(address, "InputDVIFB", hasBit(cb1, 0x10))
+  setMonitorBoolean(address, "FailureFB", hasBit(cb1, 0x20))
+end
+
 local function parseFrame(frame)
   local b0, address, command, value1, value2 = string.byte(frame, 1, 5)
   Controls.LastRx.String = frameToHex(frame)
@@ -470,24 +586,41 @@ local function parseFrame(frame)
   end
 
   reportStatus("OK", "AHnet response from " .. tostring(address))
+  if address >= 1 and address <= MonitorCount then
+    setMonitorBoolean(address, "OnlineFB", true)
+    setMonitorString(address, "LastRx", Controls.LastRx.String)
+  end
 
   if command == 0x14 then
-    setFeedbackFromControlByte(value1)
+    setMonitorFeedbackFromControlByte(address, value1)
+    if isSelectedAddress(address) then setFeedbackFromControlByte(value1) end
   elseif command == 0x15 then
-    Controls.FirmwareVersion.String = byteToHex(value1) .. "." .. byteToHex(value2)
+    local version = byteToHex(value1) .. "." .. byteToHex(value2)
+    setMonitorString(address, "FirmwareVersion", version)
+    if isSelectedAddress(address) then Controls.FirmwareVersion.String = version end
   elseif command == 0x01 then
-    Controls.UpFB.Boolean = value1 == 0x01
-    Controls.DownFB.Boolean = value1 == 0x00
-    syncToggleStates()
+    setMonitorBoolean(address, "UpFB", value1 == 0x01)
+    setMonitorBoolean(address, "DownFB", value1 == 0x00)
+    if isSelectedAddress(address) then
+      Controls.UpFB.Boolean = value1 == 0x01
+      Controls.DownFB.Boolean = value1 == 0x00
+      syncToggleStates()
+    end
   elseif command == 0x02 then
-    Controls.ScreenOnFB.Boolean = value1 == 0x01
-    syncToggleStates()
+    setMonitorBoolean(address, "ScreenOnFB", value1 == 0x01)
+    if isSelectedAddress(address) then
+      Controls.ScreenOnFB.Boolean = value1 == 0x01
+      syncToggleStates()
+    end
   elseif command == 0x03 then
-    Controls.InputDVIFB.Boolean = value1 == 0x00
+    setMonitorBoolean(address, "InputDVIFB", value1 == 0x00)
+    if isSelectedAddress(address) then Controls.InputDVIFB.Boolean = value1 == 0x00 end
   elseif command == 0x04 then
-    Controls.LockedFB.Boolean = value1 == 0x01
+    setMonitorBoolean(address, "LockedFB", value1 == 0x01)
+    if isSelectedAddress(address) then Controls.LockedFB.Boolean = value1 == 0x01 end
   elseif command == 0x13 then
-    Controls.FailureFB.Boolean = false
+    setMonitorBoolean(address, "FailureFB", false)
+    if isSelectedAddress(address) then Controls.FailureFB.Boolean = false end
   end
 end
 
@@ -514,14 +647,24 @@ local function parseResponse()
 end
 
 local function pollDevice()
-  if tonumber(Properties["Poll Interval"].Value) > 0 and connected() and not Controls.Broadcast.Boolean then
-    sendAHnet(0x14, 0x00, 0x00)
+  if tonumber(Properties["Poll Interval"].Value) > 0 and connected() then
+    for address = 1, MonitorCount do
+      setMonitorBoolean(address, "OnlineFB", false)
+      sendAHnetTo(address, 0x14, 0x00, 0x00)
+    end
+  end
+end
+
+local function setAllMonitorsOffline()
+  for address = 1, MonitorCount do
+    setMonitorBoolean(address, "OnlineFB", false)
   end
 end
 
 local function disconnect()
   PollTimer:Stop()
   Controls.ConnectedFB.Boolean = false
+  setAllMonitorsOffline()
   if connected() then
     TCP:Disconnect()
   end
@@ -548,27 +691,34 @@ TCP.Connected = function()
     PollTimer:Start(Properties["Poll Interval"].Value)
   end
   pollDevice()
+  for address = 1, MonitorCount do
+    sendAHnetTo(address, 0x15, 0x00, 0x00)
+  end
 end
 
 TCP.Reconnect = function()
   Controls.ConnectedFB.Boolean = false
+  setAllMonitorsOffline()
   reportStatus("INITIALIZING", "Reconnecting")
 end
 
 TCP.Closed = function()
   Controls.ConnectedFB.Boolean = false
+  setAllMonitorsOffline()
   reportStatus("MISSING", "Socket closed")
   PollTimer:Stop()
 end
 
 TCP.Error = function()
   Controls.ConnectedFB.Boolean = false
+  setAllMonitorsOffline()
   reportStatus("MISSING", "Socket error")
   PollTimer:Stop()
 end
 
 TCP.Timeout = function()
   Controls.ConnectedFB.Boolean = false
+  setAllMonitorsOffline()
   reportStatus("MISSING", "Socket timeout")
   PollTimer:Stop()
 end

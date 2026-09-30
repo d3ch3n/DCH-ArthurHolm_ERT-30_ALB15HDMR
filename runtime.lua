@@ -4,6 +4,7 @@ local TCP = TcpSocket.New()
 local PollTimer = Timer.New()
 local rxBuffer = ""
 local syncingToggles = false
+local MonitorCount = tonumber(Properties["Monitor Count"].Value) or 1
 
 local DebugTx = false
 local DebugRx = false
@@ -54,8 +55,8 @@ local function clampAddress(address)
   address = tonumber(address) or 1
   if address < 1 then
     return 1
-  elseif address > 30 then
-    return 30
+  elseif address > MonitorCount then
+    return MonitorCount
   end
   return math.floor(address)
 end
@@ -89,6 +90,29 @@ local function sendAHnet(command, value1, value2)
   writeFrame(string.char(0xFA, getAddress(), command, value1 or 0x00, value2 or 0x00))
 end
 
+local function sendAHnetTo(address, command, value1, value2)
+  writeFrame(string.char(0xFA, address, command, value1 or 0x00, value2 or 0x00))
+end
+
+local function monitorControl(address, suffix)
+  return Controls["Monitor" .. address .. suffix]
+end
+
+local function setMonitorBoolean(address, suffix, value)
+  local control = monitorControl(address, suffix)
+  if control then control.Boolean = value end
+end
+
+local function setMonitorString(address, suffix, value)
+  local control = monitorControl(address, suffix)
+  if control then control.String = value end
+end
+
+local function isSelectedAddress(address)
+  return not Controls.Broadcast.Boolean
+    and address == clampAddress(Controls.Address.String)
+end
+
 local function syncToggleStates()
   syncingToggles = true
   Controls.MovementToggle.Boolean = Controls.UpFB.Boolean
@@ -107,6 +131,16 @@ local function setFeedbackFromControlByte(cb1)
   syncToggleStates()
 end
 
+local function setMonitorFeedbackFromControlByte(address, cb1)
+  setMonitorString(address, "ControlByte", byteToHex(cb1))
+  setMonitorBoolean(address, "UpFB", hasBit(cb1, 0x01))
+  setMonitorBoolean(address, "DownFB", hasBit(cb1, 0x02))
+  setMonitorBoolean(address, "ScreenOnFB", hasBit(cb1, 0x04))
+  setMonitorBoolean(address, "LockedFB", hasBit(cb1, 0x08))
+  setMonitorBoolean(address, "InputDVIFB", hasBit(cb1, 0x10))
+  setMonitorBoolean(address, "FailureFB", hasBit(cb1, 0x20))
+end
+
 local function parseFrame(frame)
   local b0, address, command, value1, value2 = string.byte(frame, 1, 5)
   Controls.LastRx.String = frameToHex(frame)
@@ -118,24 +152,41 @@ local function parseFrame(frame)
   end
 
   reportStatus("OK", "AHnet response from " .. tostring(address))
+  if address >= 1 and address <= MonitorCount then
+    setMonitorBoolean(address, "OnlineFB", true)
+    setMonitorString(address, "LastRx", Controls.LastRx.String)
+  end
 
   if command == 0x14 then
-    setFeedbackFromControlByte(value1)
+    setMonitorFeedbackFromControlByte(address, value1)
+    if isSelectedAddress(address) then setFeedbackFromControlByte(value1) end
   elseif command == 0x15 then
-    Controls.FirmwareVersion.String = byteToHex(value1) .. "." .. byteToHex(value2)
+    local version = byteToHex(value1) .. "." .. byteToHex(value2)
+    setMonitorString(address, "FirmwareVersion", version)
+    if isSelectedAddress(address) then Controls.FirmwareVersion.String = version end
   elseif command == 0x01 then
-    Controls.UpFB.Boolean = value1 == 0x01
-    Controls.DownFB.Boolean = value1 == 0x00
-    syncToggleStates()
+    setMonitorBoolean(address, "UpFB", value1 == 0x01)
+    setMonitorBoolean(address, "DownFB", value1 == 0x00)
+    if isSelectedAddress(address) then
+      Controls.UpFB.Boolean = value1 == 0x01
+      Controls.DownFB.Boolean = value1 == 0x00
+      syncToggleStates()
+    end
   elseif command == 0x02 then
-    Controls.ScreenOnFB.Boolean = value1 == 0x01
-    syncToggleStates()
+    setMonitorBoolean(address, "ScreenOnFB", value1 == 0x01)
+    if isSelectedAddress(address) then
+      Controls.ScreenOnFB.Boolean = value1 == 0x01
+      syncToggleStates()
+    end
   elseif command == 0x03 then
-    Controls.InputDVIFB.Boolean = value1 == 0x00
+    setMonitorBoolean(address, "InputDVIFB", value1 == 0x00)
+    if isSelectedAddress(address) then Controls.InputDVIFB.Boolean = value1 == 0x00 end
   elseif command == 0x04 then
-    Controls.LockedFB.Boolean = value1 == 0x01
+    setMonitorBoolean(address, "LockedFB", value1 == 0x01)
+    if isSelectedAddress(address) then Controls.LockedFB.Boolean = value1 == 0x01 end
   elseif command == 0x13 then
-    Controls.FailureFB.Boolean = false
+    setMonitorBoolean(address, "FailureFB", false)
+    if isSelectedAddress(address) then Controls.FailureFB.Boolean = false end
   end
 end
 
@@ -162,14 +213,24 @@ local function parseResponse()
 end
 
 local function pollDevice()
-  if tonumber(Properties["Poll Interval"].Value) > 0 and connected() and not Controls.Broadcast.Boolean then
-    sendAHnet(0x14, 0x00, 0x00)
+  if tonumber(Properties["Poll Interval"].Value) > 0 and connected() then
+    for address = 1, MonitorCount do
+      setMonitorBoolean(address, "OnlineFB", false)
+      sendAHnetTo(address, 0x14, 0x00, 0x00)
+    end
+  end
+end
+
+local function setAllMonitorsOffline()
+  for address = 1, MonitorCount do
+    setMonitorBoolean(address, "OnlineFB", false)
   end
 end
 
 local function disconnect()
   PollTimer:Stop()
   Controls.ConnectedFB.Boolean = false
+  setAllMonitorsOffline()
   if connected() then
     TCP:Disconnect()
   end
@@ -196,27 +257,34 @@ TCP.Connected = function()
     PollTimer:Start(Properties["Poll Interval"].Value)
   end
   pollDevice()
+  for address = 1, MonitorCount do
+    sendAHnetTo(address, 0x15, 0x00, 0x00)
+  end
 end
 
 TCP.Reconnect = function()
   Controls.ConnectedFB.Boolean = false
+  setAllMonitorsOffline()
   reportStatus("INITIALIZING", "Reconnecting")
 end
 
 TCP.Closed = function()
   Controls.ConnectedFB.Boolean = false
+  setAllMonitorsOffline()
   reportStatus("MISSING", "Socket closed")
   PollTimer:Stop()
 end
 
 TCP.Error = function()
   Controls.ConnectedFB.Boolean = false
+  setAllMonitorsOffline()
   reportStatus("MISSING", "Socket error")
   PollTimer:Stop()
 end
 
 TCP.Timeout = function()
   Controls.ConnectedFB.Boolean = false
+  setAllMonitorsOffline()
   reportStatus("MISSING", "Socket timeout")
   PollTimer:Stop()
 end

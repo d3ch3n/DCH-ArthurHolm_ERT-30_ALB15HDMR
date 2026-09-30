@@ -1,4 +1,6 @@
-local CurrentPage = PageNames[props["page_index"].Value]
+local pageIndex = props["page_index"].Value
+local CurrentPage = pageIndex <= #PageNames and PageNames[pageIndex]
+  or "Monitor " .. tostring(pageIndex - #PageNames)
 
 local function addLabel(text, x, y, w, h, align)
   table.insert(graphics, {
@@ -122,4 +124,32 @@ elseif CurrentPage == "Setup" then
   textBox("LastRx", "Last Received AHnet Frame", 406, 30, 200, 24)
   addLabel("Last Tx", 340, 68, 58, 16, "Right")
   textBox("LastTx", "Last Transmitted AHnet Frame", 406, 64, 200, 24)
+else
+  local address = tonumber(string.match(CurrentPage, "Monitor (%d+)"))
+  if address and address <= props["Monitor Count"].Value then
+    local prefix = "Monitor" .. address
+    addGroup("Monitor " .. address .. " Feedback", 5, 5, 330, 250)
+
+    local monitorFeedback = {
+      { prefix .. "OnlineFB", "Online", 22, 35 },
+      { prefix .. "UpFB", "Up", 22, 70 },
+      { prefix .. "DownFB", "Down", 170, 70 },
+      { prefix .. "ScreenOnFB", "Screen On", 22, 105 },
+      { prefix .. "InputDVIFB", "Input DVI", 170, 105 },
+      { prefix .. "LockedFB", "Locked", 22, 140 },
+      { prefix .. "FailureFB", "Failure", 170, 140 }
+    }
+
+    for _, item in ipairs(monitorFeedback) do
+      led(item[1], "Monitor " .. address .. "~" .. item[2], item[3], item[4])
+      addLabel(item[2], item[3] + 26, item[4] + 2, 88, 16)
+    end
+
+    addLabel("CB", 22, 180, 30, 16, "Right")
+    textBox(prefix .. "ControlByte", "Monitor " .. address .. "~Control Byte", 60, 176, 70, 24)
+    addLabel("FW", 150, 180, 30, 16, "Right")
+    textBox(prefix .. "FirmwareVersion", "Monitor " .. address .. "~Firmware", 188, 176, 110, 24)
+    addLabel("Last Rx", 22, 218, 52, 16, "Right")
+    textBox(prefix .. "LastRx", "Monitor " .. address .. "~Last Received Frame", 82, 214, 216, 24)
+  end
 end

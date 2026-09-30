@@ -6,6 +6,7 @@ Q-SYS control plugin for Arthur Holm / Albiral ALB15HDMR monitors connected thro
 
 - TCP/IP connection to the ERT-30 with configurable IP and TCP port.
 - AHnet address selection from 1 to 30.
+- Configurable monitor count with one feedback page per monitor.
 - Broadcast mode using AHnet address `F9`.
 - Movement: up and down.
 - Movement toggle: on raises the monitor, off lowers it.
@@ -17,6 +18,7 @@ Q-SYS control plugin for Arthur Holm / Albiral ALB15HDMR monitors connected thro
 - Failure reset.
 - Inquiry and firmware request.
 - Feedback parsing from AHnet replies and inquiry control byte.
+- Individual polling and communication status for every configured address.
 
 ## AHnet Frames
 
@@ -62,6 +64,7 @@ Run the emulator tests with:
 
 ```bash
 python3 -m unittest discover -s tests -v
+lua tests/test_plugin_structure.lua
 ```
 
 ## Reference Documentation

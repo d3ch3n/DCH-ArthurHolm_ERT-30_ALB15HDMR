@@ -20,3 +20,11 @@ table.insert(props, {
   Max = 300,
   Value = 10
 })
+
+table.insert(props, {
+  Name = "Monitor Count",
+  Type = "integer",
+  Min = 1,
+  Max = 30,
+  Value = 1
+})

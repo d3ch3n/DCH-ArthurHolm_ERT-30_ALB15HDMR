@@ -107,3 +107,37 @@ for _, name in ipairs({ "LastTx", "LastRx", "ControlByte", "FirmwareVersion" }) 
     PinStyle = "none"
   })
 end
+
+local monitorCount = props["Monitor Count"].Value
+local monitorIndicators = {
+  "OnlineFB",
+  "UpFB",
+  "DownFB",
+  "ScreenOnFB",
+  "LockedFB",
+  "InputDVIFB",
+  "FailureFB"
+}
+
+for address = 1, monitorCount do
+  for _, suffix in ipairs(monitorIndicators) do
+    table.insert(ctrls, {
+      Name = "Monitor" .. address .. suffix,
+      ControlType = "Indicator",
+      IndicatorType = "Led",
+      Count = 1,
+      UserPin = true,
+      PinStyle = "Output"
+    })
+  end
+
+  for _, suffix in ipairs({ "ControlByte", "FirmwareVersion", "LastRx" }) do
+    table.insert(ctrls, {
+      Name = "Monitor" .. address .. suffix,
+      ControlType = "Text",
+      Count = 1,
+      UserPin = true,
+      PinStyle = "Output"
+    })
+  end
+end

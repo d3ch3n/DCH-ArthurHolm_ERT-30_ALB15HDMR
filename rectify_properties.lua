@@ -7,3 +7,9 @@ end
 if props["Poll Interval"].Value < 0 then
   props["Poll Interval"].Value = 0
 end
+
+if props["Monitor Count"].Value < 1 then
+  props["Monitor Count"].Value = 1
+elseif props["Monitor Count"].Value > 30 then
+  props["Monitor Count"].Value = 30
+end
