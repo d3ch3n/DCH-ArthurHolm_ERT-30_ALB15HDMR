@@ -22,7 +22,7 @@ elseif DebugPrint == "All" then
   DebugTx, DebugRx, DebugFunction = true, true, true
 end
 
-TCP.ReadTimeout = 5
+TCP.ReadTimeout = 0
 TCP.WriteTimeout = 5
 TCP.ReconnectTimeout = 5
 

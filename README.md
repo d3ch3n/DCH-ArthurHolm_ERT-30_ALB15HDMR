@@ -74,3 +74,7 @@ implementation are stored in [`references/`](references/README.md).
 The default TCP port is `2002`, as specified in the official ERT user guide. If
 the ERT-30 in the field is configured differently, change the `Default Port`
 property or the runtime `DevicePort` control.
+
+The TCP read timeout is disabled because the ERT connection remains idle
+between polling frames. Connection health is verified by the configured poll
+interval instead.
